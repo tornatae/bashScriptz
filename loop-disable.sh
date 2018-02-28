@@ -1,16 +1,17 @@
 #!/bin/bash
 
-filez=$(ls test.d)
+filez=$(ls -d *.dis)
 for file in $filez
 do
-    echo test.d/$file{,.dis}
-    mv test.d/$file{,.dis}
-    #sleep 5
+    echo $file{,.dis}
+    mv $file{,.dis}
+    sleep 5
 done
 
+filez=$(ls -d *.dis | sed 's/\.dis//')
 for file in $filez
 do
-    echo "test.d/$file{.dis,}"
-    mv test.d/$file{.dis,}
-    #sleep 5
+    echo "$file{.dis,}"
+    mv $file{.dis,}
+    sleep 5
 done
