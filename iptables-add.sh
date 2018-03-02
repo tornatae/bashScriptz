@@ -13,13 +13,13 @@ do
         if valid_ip $var; then
                 echo "    iptables -I INPUT -s $var/32 -p tcp -j DROP"
                 echo "    iptables -I OUTPUT -d $var/32 -p tcp -j DROP"
-                #iptables -I INPUT -s $1/32 -p tcp -j DROP
-                #iptables -I OUTPUT -d $1/32 -p tcp -j DROP
+                iptables -I INPUT -s $var/32 -p tcp -j DROP
+                iptables -I OUTPUT -d $var/32 -p tcp -j DROP
 
                 echo "    iptables -I INPUT -s $var/32 -p udp -j DROP"
                 echo "    iptables -I OUTPUT -d $var/32 -p udp -j DROP"
-                #iptables -I INPUT -s $1/32 -p udp -j DROP
-                #iptables -I OUTPUT -d $1/32 -p udp -j DROP
+                iptables -I INPUT -s $var/32 -p udp -j DROP
+                iptables -I OUTPUT -d $var/32 -p udp -j DROP
         else
                 echo "Invalid IP $var!"
         fi
