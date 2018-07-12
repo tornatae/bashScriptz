@@ -1,5 +1,16 @@
 #!/bin/bash
 
+#!/bin/bash
+# If available, use LSB to identify distribution
+if [ -f /etc/lsb-release -o -d /etc/lsb-release.d ]; then
+    export DISTRO=$(lsb_release -i | cut -d: -f2 | sed s/'^\t'//)
+    echo $DISTRO
+# Otherwise, use release info file
+else
+    export DISTRO=$(ls -d /etc/[A-Za-z]*[_-][rv]e[lr]* | grep -v "lsb" | cut -d'/' -f3 | cut -d'-' -f1 | cut -d'_' -f1 | head -1)
+    echo $DISTRO
+fi
+
 main () {
     if [[ $EUID -ne 0 ]]; then
        echo "This script must be run as root"
@@ -29,9 +40,22 @@ RestartSec=5
 WantedBy=default.target
 __FILE__
 
-    firewall-cmd --zone=public --add-port=9104/tcp --permanent
-    systemctl enable node_exporter
-    systemctl start node_exporter
+firewalld_running=$(systemctl list-units --type=service --state=running | grep firewalld)
+
+if [[ "$DISTRO" == 'centos' && -n "$firewalld_running" ]]
+then
+firewall-cmd --permanent --zone=public --add-rich-rule='
+  rule family="ipv4"
+  source address="97.107.134.73/32"
+  port protocol="tcp" port="9104" accept'
+firewall-cmd --permanent --zone=public --add-rich-rule='
+  rule family="ipv4"
+  source address="97.107.134.73/32"
+  port protocol="tcp" port="9100" accept'
+fi
+
+systemctl enable node_exporter
+systemctl start node_exporter
 
 }
 main
