@@ -47,3 +47,23 @@ if [ ! -z "$var" ] && [ -e "$var" ]; then
 #$x -eq $y - true if integer $x is equal to integer $y
 #$x -lt $y - true if integer $x is less than integer $y
 #$x -gt $y - true if integer $x is greater than integer $y
+
+# For loops
+  for ((i=0; i<=6; i++)); do
+    if [ -d ${BACKUP_BASE_DIRECTORY}/${i} ]; then
+      directories="${directories} ${BACKUP_BASE_DIRECTORY}/${i}"
+    fi
+  done
+
+# For looping through a list
+## declare an array variable
+declare -a arr=("element1" "element2" "element3")
+
+## now loop through the above array
+for i in "${arr[@]}"
+do
+   echo "$i"
+   # or do whatever with individual element of the array
+done
+
+# You can access them using echo "${arr[0]}", "${arr[1]}" also
