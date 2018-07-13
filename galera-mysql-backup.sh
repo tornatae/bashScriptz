@@ -1,12 +1,12 @@
 #!/bin/bash
-#title         :mysql-backups-v2.sh
+#title         :galera-mysql-backup.sh
 #description   :Script for running backups on a 3-node galera cluster.
 #                Designed to run from node 3 (most likely slave) and alternatively dump through node 2
 #                to prevent excessive resource usage on the Master.
 #author        :Roland MacDavid
 #date          :2018-07-13
 #version       :2
-#usage         :bash mysql-backups-v2.sh (takes no arguments)
+#usage         :(takes no arguments)
 
 #export all variables that we'll be setting
 set -a
@@ -73,6 +73,11 @@ main () {
         echo "Yesterday's backup not found, not compressing"
     fi
 #############################################################
+
+##### BACKUPS RETENTION ###################################
+## Check for Backups older than 70 days, then delete them. ##
+find $BACKUP_PATH -maxdepth 1 -mtime +70 -type f -delete
+############################################################
 }
 
 if [[ "$FREE_SPACE" -gt 120 ]];
