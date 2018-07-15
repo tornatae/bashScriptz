@@ -1,6 +1,7 @@
 #!/bin/nope
 #not meant to be run
-# references
+# Bunch of bash conditional and for loop examples because remembering arcane bash syntax is hard
+# references:
 # http://www.compciv.org/topics/bash/conditional-branching/
 # https://ryanstutorials.net/bash-scripting-tutorial/bash-if-statements.php
 # http://mywiki.wooledge.org/
@@ -67,3 +68,7 @@ do
 done
 
 # You can access them using echo "${arr[0]}", "${arr[1]}" also
+
+
+# Simple loop to loop through subdirectories
+for d in ./*; do cd $d && unrar e *.r00 && cd ..; done
