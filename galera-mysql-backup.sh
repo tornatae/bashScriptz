@@ -12,7 +12,6 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/us
 #export all variables that we'll be setting
 set -a
 
-# MySQL defaults file for logging into g2 if we need to.
 BACKUP_PATH="/bs-db-backups"
 DATE=$(date +"%m-%d-%y")
 TODAYS_BACKUP_PATH=$BACKUP_PATH/$DATE
@@ -20,13 +19,11 @@ TODAYS_BACKUP_PATH=$BACKUP_PATH/$DATE
 DATABASES=$(mysql -e 'show databases\G' | awk '/Database:/ {printf $2 "\n"};')
 # State information we'll need later
 STATE=$(cat /var/log/keepalived.log | tail -1 | grep -Eo '(Backup|Master)')
+# MySQL defaults file for logging into g2 if we need to.
 G2_DEFAULTS_FILE="/root/.backup.my.cnf"
 G2_STATE=$(ssh root@bloom-db-2 "cat /var/log/keepalived.log | tail -1 | grep -Eo '(Backup|Master)'")
 # Only backup if today's backup path is empty. If it isn't, that may mean the backup failed partway through and we don't wanna mess with that.
 BACKUP_NOT_DONE=$(ls -la $TODAYS_BACKUP_PATH 2>/dev/null)
-YESTERDAY=$(date +"%m-%d-%y" --date="1 days ago")
-YESTERDAY_BACKUP_PATH=$BACKUP_PATH/$YESTERDAY
-FREE_SPACE=$(df  --output=avail -m /dev/mapper/mysql--backups-mysql--backups -BG | tail -1 | tr -cd '[[:digit:]]._-')
 
 set +a
 
@@ -61,19 +58,25 @@ main () {
 }
 ########################################################
 
-compress () {
+#############################################################
 ## After a successful backup, compress yesterday's backups ##
-    if [[ -a "$YESTERDAY_BACKUP_PATH" ]]
-    then
-        touch $BACKUP_PATH/backups-compressing-$DATE
-        echo "Compressing yesterday's backups"
-        # Tar yesterday's backup with pigz. Pigz is multi-threaded gzip which is useful for humongous backups
-        # Only tar yesterday's backup because today's backup is more likely to be needed for a critical revert.
-        tar -cf - $YESTERDAY_BACKUP_PATH | pigz --best -p 6 > $BACKUP_PATH/$YESTERDAY.tar.gz && rm -rf $YESTERDAY_BACKUP_PATH
-        if [ $? -eq 0 ]; then echo "Yesterday's backup compressed successfully!" && rm -r $BACKUP_PATH/backups-compressing-$DATE; fi
-    else
-        echo "Yesterday's backup not found, not compressing"
-    fi
+compress () {
+    OLDER_UNCOMPRESSED=$(find /bs-db-backups/ -maxdepth 1 -mtime +2 -type d | egrep -wo --color=never '[0-9][0-9]-[0-9][0-9]-[0-9][0-9]')
+    for i in $OLDER_UNCOMPRESSED; do
+        if [[ ! -a "$BACKUP_PATH/$i.tar.gz" && -a "$BACKUP_PATH/$i" && ! -z "$i" ]]
+        then
+            touch $BACKUP_PATH/backups-compressing-$i.notice
+            echo "Compressing backup directory $BACKUP_PATH/$i"
+            tar -cf - $BACKUP_PATH/$i | pigz --best -p 6 > $BACKUP_PATH/$i.tar.gz && rm -rf $BACKUP_PATH/$i
+            if [ $? -eq 0 ]; then echo "$i backup compressed successfully!" && rm -r $BACKUP_PATH/backups-compressing-$i.notice; fi
+        fi
+        # If this backup occurred on the first of the month, save it in the monthly folder
+        DAY_NUM=$(echo $i | cut -d "-" -f2)
+        if [[ "$DAY_NUM" == "01" ]]
+        then
+            mv $BACKUP_PATH/$i.tar.gz $BACKUP_PATH/monthly/
+        fi
+    done
 }
 #############################################################
 
@@ -86,11 +89,15 @@ retention () {
 }
 ############################################################
 
-if [[ "$FREE_SPACE" -gt 120 ]];
+compress
+retention
+
+FREE_SPACE=$(df --output=avail -m /dev/mapper/mysql--backups-mysql--backups -BG | tail -1 | tr -cd '[[:digit:]]._-')
+
+if [[ "$FREE_SPACE" -gt 70 ]];
 then
     main
 else
-    echo "LOW SPACE! Less than 120 GB of free space left on the backup LV. ot running backups."
-    compress
-    retention
+    echo "LOW SPACE! Less than 70 GB of free space left on the backup LV. Skipping backups."
 fi
+
