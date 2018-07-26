@@ -1,6 +1,4 @@
 #!/bin/bash
-
-#!/bin/bash
 # If available, use LSB to identify distribution
 if [ -f /etc/lsb-release -o -d /etc/lsb-release.d ]; then
     export DISTRO=$(lsb_release -i 2>/dev/null | cut -d: -f2 | sed s/'^\t'//)
@@ -18,31 +16,41 @@ main () {
        return 1
     fi
     cd  ;
-    #wget https://github.com/prometheus/node_exporter/releases/download/v0.15.1/node_exporter-0.15.1.linux-amd64.tar.gz
-    wget https://github.com/prometheus/node_exporter/releases/download/v0.16.0/node_exporter-0.16.0.linux-amd64.tar.gz
-    #tar -xvf node_exporter-0.15.1.linux-amd64.tar.gz
-    tar -xvf node_exporter-0.16.0.linux-amd64.tar.gz
-    #mv node_exporter-0.15.1.linux-amd64 node_exporter
-    mv node_exporter-0.16.0.linux-amd64 node_exporter
-    useradd -s /bin/false/ node_exporter
-    chown -R node_exporter: node_exporter/
+    wget https://github.com/prometheus/mysqld_exporter/releases/download/v0.11.0/mysqld_exporter-0.11.0.linux-amd64.tar.gz
+    tar -xvf mysqld_exporter-0.11.0.linux-amd64.tar.gz 
+    mv mysqld_exporter-0.11.0.linux-amd64 mysqld_exporter
+    useradd -s /bin/false/ prom_exporter
+    chown -R prom_exporter: mysqld_exporter
 
-    cp node_exporter/node_exporter /usr/bin/node_exporter
+    cp mysqld_exporter/mysqld_exporter /usr/bin/mysqld_exporter
 
-    touch /etc/systemd/system/node_exporter.service
-    cat > /etc/systemd/system/node_exporter.service<<__FILE__
+    touch /etc/systemd/system/mysqld_exporter.service
+    cat > /etc/systemd/system/mysqld_exporter.service<<__FILE__
 [Unit]
-Description=Node Exporter
-
+Description=Mysqld Exporter
+Wants=network-online.target
+After=network-online.target
+ 
 [Service]
-User=node_exporter
-ExecStart=/usr/bin/node_exporter
+User=prom_exporter
+type=simple
+ExecStart=/usr/bin/mysqld_exporter --config.my-cnf "/etc/mysqld_exporter/.my.cnf"
 Restart=on-failure
 RestartSec=5
-
+ 
 [Install]
-WantedBy=default.target
+WantedBy=multi-user.target
 __FILE__
+
+mkdir /etc/mysqld_exporter
+touch /etc/mysqld_exporter/.my.cnf
+cat > /etc/mysqld_exporter/.my.cnf<<__FILE__
+[client]
+user=exporter
+password=apassword
+__FILE__
+chown prom_exporter /etc/mysqld_exporter/.my.cnf
+chmod og-r /etc/mysqld_exporter/.my.cnf
 
 firewalld_running=$(systemctl list-units --type=service --state=running | grep firewalld)
 ufw_running=$(systemctl list-units --type=service --state=active --no-pager | grep ufw)
@@ -66,8 +74,9 @@ then
 fi
 
 
-systemctl enable node_exporter
-systemctl start node_exporter
+systemctl enable mysqld_exporter
+systemctl start mysqld_exporter
 
 }
 main
+
